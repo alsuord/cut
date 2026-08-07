@@ -1,0 +1,1037 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cutline — AI Background Remover &amp; Recolour</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@500;600;700;800&family=Inter:wght@400;500;600;700&family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0A0B10;
+    --bg-2:#0E1016;
+    --panel:rgba(255,255,255,0.045);
+    --panel-2:rgba(255,255,255,0.07);
+    --border:rgba(255,255,255,0.09);
+    --border-strong:rgba(255,255,255,0.16);
+    --text:#F5F6FA;
+    --text-dim:#9AA1B2;
+    --text-faint:#666D7E;
+    --accent1:#8B5CF6;
+    --accent2:#22D3C7;
+    --accent-warn:#F5A524;
+    --danger:#F2545B;
+    --radius-lg:20px;
+    --radius-md:14px;
+    --radius-sm:10px;
+    --font-display:'Sora', sans-serif;
+    --font-body:'Inter', sans-serif;
+  }
+  html[lang="ar"]{
+    --font-display:'IBM Plex Sans Arabic', sans-serif;
+    --font-body:'IBM Plex Sans Arabic', sans-serif;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:
+      radial-gradient(60% 50% at 15% -10%, rgba(139,92,246,0.16), transparent 60%),
+      radial-gradient(50% 40% at 100% 0%, rgba(34,211,199,0.12), transparent 60%),
+      var(--bg);
+    color:var(--text);
+    font-family:var(--font-body);
+    min-height:100vh;
+    -webkit-font-smoothing:antialiased;
+  }
+  .app{max-width:1320px;margin:0 auto;padding:26px 24px 70px;}
+
+  /* ---------- Header ---------- */
+  .topbar{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:38px;}
+  .brand{display:flex;align-items:center;gap:12px;}
+  .brand-mark{width:38px;height:38px;flex:none;border-radius:11px;
+    background:linear-gradient(135deg,var(--accent1),var(--accent2));
+    display:flex;align-items:center;justify-content:center;
+    box-shadow:0 8px 24px -8px rgba(139,92,246,0.55);
+  }
+  .brand-mark svg{width:20px;height:20px;}
+  .brand-name{font-family:var(--font-display);font-weight:700;font-size:19px;letter-spacing:-0.01em;}
+  .brand-tag{font-size:11.5px;color:var(--text-faint);margin-top:1px;}
+
+  .lang-toggle{display:flex;background:var(--panel);border:1px solid var(--border);border-radius:999px;padding:3px;gap:2px;}
+  .lang-toggle button{
+    font-family:var(--font-body);font-size:12.5px;font-weight:600;
+    padding:8px 15px;background:transparent;color:var(--text-dim);
+    border:none;border-radius:999px;cursor:pointer;transition:.18s ease;
+  }
+  .lang-toggle button.active{background:linear-gradient(135deg,var(--accent1),var(--accent2));color:#0A0B10;}
+
+  /* ---------- Hero ---------- */
+  .hero{margin-bottom:36px;max-width:680px;}
+  .eyebrow{
+    display:inline-flex;align-items:center;gap:8px;
+    font-size:11.5px;font-weight:600;letter-spacing:0.06em;text-transform:uppercase;
+    color:var(--accent2);margin-bottom:14px;
+  }
+  .eyebrow::before{content:"";width:6px;height:6px;border-radius:50%;background:var(--accent2);box-shadow:0 0 10px var(--accent2);}
+  .hero h1{
+    font-family:var(--font-display);font-weight:700;font-size:clamp(30px,4vw,44px);
+    line-height:1.12;margin:0 0 12px;letter-spacing:-0.015em;
+  }
+  .hero h1 .grad{
+    background:linear-gradient(120deg,var(--accent1),var(--accent2));
+    -webkit-background-clip:text;background-clip:text;color:transparent;
+  }
+  .hero p{font-size:15px;color:var(--text-dim);line-height:1.6;margin:0;}
+
+  /* ---------- Workspace ---------- */
+  .workspace{display:grid;grid-template-columns:1.35fr 0.95fr;gap:22px;align-items:start;}
+  @media (max-width:900px){.workspace{grid-template-columns:1fr;}}
+
+  .glass{
+    background:var(--panel);
+    border:1px solid var(--border);
+    border-radius:var(--radius-lg);
+    backdrop-filter:blur(18px);
+    -webkit-backdrop-filter:blur(18px);
+  }
+
+  /* ---- Stage ---- */
+  .stage-card{padding:16px;position:relative;}
+  .stage-toolbar{display:flex;justify-content:flex-end;gap:8px;margin-bottom:12px;flex-wrap:wrap;}
+  .icon-btn{
+    display:inline-flex;align-items:center;gap:7px;
+    font-size:12.5px;font-weight:600;color:var(--text-dim);
+    background:var(--panel-2);border:1px solid var(--border);
+    padding:8px 13px;border-radius:999px;cursor:pointer;transition:.15s ease;
+  }
+  .icon-btn:hover{color:var(--text);border-color:var(--border-strong);}
+  .icon-btn:disabled{opacity:.35;cursor:not-allowed;}
+  .icon-btn svg{width:14px;height:14px;flex:none;}
+
+  .stage{
+    position:relative;border-radius:var(--radius-md);overflow:hidden;
+    background:repeating-conic-gradient(#20242c 0% 25%, #171a20 0% 50%) 50%/20px 20px;
+    min-height:420px;display:flex;align-items:center;justify-content:center;
+    border:1px solid var(--border);
+  }
+  .stage canvas{max-width:100%;max-height:560px;display:block;touch-action:none;}
+  .stage canvas.tool-pick{cursor:crosshair;}
+  .stage canvas.tool-brush{cursor:none;}
+
+  .brush-cursor{
+    position:absolute;border:1.5px solid var(--accent2);border-radius:50%;
+    pointer-events:none;box-shadow:0 0 0 1px rgba(0,0,0,0.4), 0 0 14px rgba(34,211,199,0.5);
+    display:none;transform:translate(-50%,-50%);
+  }
+
+  .empty-state{text-align:center;padding:44px 30px;}
+  .empty-state .icon{
+    width:56px;height:56px;margin:0 auto 18px;border-radius:16px;
+    background:linear-gradient(135deg, rgba(139,92,246,0.18), rgba(34,211,199,0.14));
+    display:flex;align-items:center;justify-content:center;
+    border:1px solid var(--border);
+  }
+  .empty-state .icon svg{width:26px;height:26px;color:var(--accent2);}
+  .empty-state h3{font-family:var(--font-display);font-weight:700;font-size:19px;margin:0 0 6px;}
+  .empty-state p{font-size:13.5px;color:var(--text-dim);margin:0 0 20px;}
+  .dropzone{
+    border:1.5px dashed var(--border-strong);border-radius:var(--radius-md);
+    padding:20px 26px;display:inline-block;transition:.15s ease;cursor:pointer;
+  }
+  .dropzone.dragover{border-color:var(--accent2);background:rgba(34,211,199,0.06);}
+
+  .btn{
+    font-family:var(--font-body);font-weight:600;font-size:13.5px;
+    padding:11px 20px;border-radius:999px;border:1px solid transparent;
+    cursor:pointer;transition:transform .12s ease, opacity .15s ease, box-shadow .2s ease;
+    display:inline-flex;align-items:center;gap:8px;white-space:nowrap;
+  }
+  .btn:active{transform:scale(0.97);}
+  .btn-primary{
+    background:linear-gradient(135deg,var(--accent1),var(--accent2));color:#0A0B10;
+    box-shadow:0 10px 26px -10px rgba(139,92,246,0.6);
+  }
+  .btn-primary:hover{box-shadow:0 14px 30px -8px rgba(139,92,246,0.75);}
+  .btn-outline{background:var(--panel-2);color:var(--text);border-color:var(--border);}
+  .btn-outline:hover{border-color:var(--border-strong);}
+  .btn:disabled{opacity:.35;cursor:not-allowed;transform:none;box-shadow:none;}
+  .btn-block{width:100%;justify-content:center;}
+
+  /* ---- AI progress overlay ---- */
+  .ai-overlay{
+    position:absolute;inset:0;display:none;flex-direction:column;align-items:center;justify-content:center;gap:14px;
+    background:rgba(10,11,16,0.72);backdrop-filter:blur(6px);z-index:5;padding:24px;text-align:center;
+  }
+  .ai-overlay.show{display:flex;}
+  .spinner{
+    width:34px;height:34px;border-radius:50%;
+    border:3px solid rgba(255,255,255,0.12);border-top-color:var(--accent2);
+    animation:spin 0.85s linear infinite;
+  }
+  @keyframes spin{to{transform:rotate(360deg);}}
+  .ai-overlay .status{font-size:13px;color:var(--text-dim);max-width:280px;}
+  .progress-track{width:220px;height:6px;border-radius:999px;background:rgba(255,255,255,0.1);overflow:hidden;}
+  .progress-fill{height:100%;width:0%;background:linear-gradient(90deg,var(--accent1),var(--accent2));transition:width .25s ease;}
+
+  /* ---- Tool rail ---- */
+  .rail{display:flex;flex-direction:column;gap:16px;}
+  .panel{padding:20px 20px 22px;transition:opacity .2s ease;}
+  .panel.disabled{opacity:.4;pointer-events:none;}
+  .panel-head{display:flex;align-items:center;gap:9px;margin-bottom:4px;}
+  .panel-num{
+    width:22px;height:22px;border-radius:7px;flex:none;
+    background:var(--panel-2);border:1px solid var(--border);
+    display:flex;align-items:center;justify-content:center;
+    font-family:var(--font-display);font-size:11px;font-weight:700;color:var(--accent2);
+  }
+  .panel-title{font-family:var(--font-display);font-size:15.5px;font-weight:700;letter-spacing:-0.01em;}
+  .panel-sub{font-size:12.5px;color:var(--text-dim);margin:6px 0 16px;line-height:1.55;}
+
+  .tabs{display:flex;gap:6px;background:var(--panel-2);border-radius:999px;padding:3px;margin-bottom:16px;}
+  .tabs button{
+    flex:1;font-size:12px;font-weight:600;padding:8px 10px;border-radius:999px;border:none;
+    background:transparent;color:var(--text-dim);cursor:pointer;transition:.15s ease;
+  }
+  .tabs button.active{background:var(--text);color:#0A0B10;}
+  .tab-panel{display:none;}
+  .tab-panel.active{display:block;}
+
+  .field{margin-bottom:14px;}
+  .field:last-child{margin-bottom:0;}
+  .field-label{display:flex;justify-content:space-between;font-size:11.5px;font-weight:600;
+    text-transform:uppercase;letter-spacing:0.05em;color:var(--text-dim);margin-bottom:9px;}
+  .field-label span.val{color:var(--accent2);font-weight:700;}
+  input[type="range"]{
+    width:100%;accent-color:var(--accent2);height:4px;
+  }
+  .row{display:flex;gap:10px;align-items:center;}
+  .swatch{
+    width:34px;height:34px;border-radius:var(--radius-sm);flex:none;
+    border:1px solid var(--border-strong);
+    background:repeating-conic-gradient(#333 0% 25%, #222 0% 50%) 50%/8px 8px;
+    overflow:hidden;
+  }
+  .swatch .fill{width:100%;height:100%;}
+  input[type="color"]{
+    width:44px;height:34px;border:1px solid var(--border-strong);border-radius:var(--radius-sm);
+    background:none;padding:0;cursor:pointer;flex:none;
+  }
+  .segmented{display:flex;gap:6px;background:var(--panel-2);border-radius:999px;padding:3px;}
+  .segmented button{
+    flex:1;font-size:12px;font-weight:600;padding:8px 10px;border-radius:999px;border:none;
+    background:transparent;color:var(--text-dim);cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;transition:.15s ease;
+  }
+  .segmented button.active{background:linear-gradient(135deg,var(--accent1),var(--accent2));color:#0A0B10;}
+  .segmented button svg{width:13px;height:13px;}
+
+  .btn-row{display:flex;gap:8px;flex-wrap:wrap;margin-top:6px;}
+  .hint{font-size:11.5px;color:var(--text-faint);margin-top:10px;line-height:1.55;}
+
+  .footer-note{text-align:center;color:var(--text-faint);font-size:11.5px;margin-top:40px;line-height:1.7;}
+
+  .error-banner{
+    background:rgba(242,84,91,0.12);border:1px solid rgba(242,84,91,0.4);color:#FFB3B7;
+    border-radius:var(--radius-md);padding:12px 16px;font-size:12.5px;line-height:1.5;
+    margin-bottom:20px;
+  }
+
+  [dir="rtl"] .field-label{flex-direction:row-reverse;}
+  [dir="rtl"] .panel-head{flex-direction:row-reverse;}
+  [dir="rtl"] .row{flex-direction:row-reverse;}
+  [dir="rtl"] .stage-toolbar{justify-content:flex-start;}
+
+  .visually-hidden{position:absolute!important;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);}
+  :focus-visible{outline:2px solid var(--accent2);outline-offset:2px;}
+</style>
+</head>
+<body>
+<div class="app">
+
+  <div class="error-banner" id="errorBanner" style="display:none;"></div>
+
+  <header class="topbar">
+    <div class="brand">
+      <span class="brand-mark">
+        <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M4 4L20 20M20 4L4 20" stroke="#0A0B10" stroke-width="2.2" stroke-linecap="round"/></svg>
+      </span>
+      <div>
+        <div class="brand-name" data-i18n="brandName">Cutline</div>
+        <div class="brand-tag" data-i18n="brandTag">AI cutouts, right in your browser</div>
+      </div>
+    </div>
+    <div class="lang-toggle" role="group" aria-label="Language">
+      <button type="button" id="btnLangEn" class="active">EN</button>
+      <button type="button" id="btnLangAr">AR · عربي</button>
+    </div>
+  </header>
+
+  <section class="hero">
+    <span class="eyebrow" data-i18n="eyebrow">Runs entirely on-device</span>
+    <h1><span data-i18n="heroTitle1">Cut the background.</span> <span class="grad" data-i18n="heroTitle2">Keep everything else.</span></h1>
+    <p data-i18n="heroSub">A real AI segmentation model removes the background from any photo — then fine-tune the edges and recolour what's left, all without a single upload to a server.</p>
+  </section>
+
+  <main class="workspace">
+
+    <!-- Stage -->
+    <div class="glass stage-card">
+      <div class="stage-toolbar" id="stageToolbar" style="display:none;">
+        <button class="icon-btn" id="btnCompare" data-i18n="compareBtn" title="Hold to compare">
+          <svg viewBox="0 0 24 24" fill="none"><path d="M8 4v16M16 4v16M4 9l4-4M4 15l4 4M20 9l-4-4M20 15l-4 4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+          <span data-i18n="compareBtn">Hold to compare</span>
+        </button>
+        <button class="icon-btn" id="btnUndoEdits" data-i18n="undoEdits">
+          <svg viewBox="0 0 24 24" fill="none"><path d="M3 7v6h6M3 13a9 9 0 1 0 3-7" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          <span data-i18n="undoEdits">Undo edits</span>
+        </button>
+        <button class="icon-btn" id="btnResetImage">
+          <svg viewBox="0 0 24 24" fill="none"><path d="M12 5V3L8 6l4 3V7a5 5 0 1 1-5 5H5a7 7 0 1 0 7-7z" fill="currentColor"/></svg>
+          <span data-i18n="resetImage">Reset all</span>
+        </button>
+        <button class="icon-btn" id="btnNewImage">
+          <svg viewBox="0 0 24 24" fill="none"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+          <span data-i18n="newImage">New image</span>
+        </button>
+        <button class="icon-btn" id="btnDownload" style="background:linear-gradient(135deg,var(--accent1),var(--accent2));color:#0A0B10;border:none;">
+          <svg viewBox="0 0 24 24" fill="none"><path d="M12 4v11m0 0l-4-4m4 4l4-4M5 20h14" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          <span data-i18n="download">Download PNG</span>
+        </button>
+      </div>
+
+      <div class="stage" id="stage">
+        <div class="empty-state" id="emptyState">
+          <span class="icon"><svg viewBox="0 0 24 24" fill="none"><rect x="3" y="5" width="18" height="14" rx="2" stroke="currentColor" stroke-width="1.7"/><circle cx="9" cy="10" r="1.8" stroke="currentColor" stroke-width="1.6"/><path d="M3 16l5-5 4 4 3-3 6 5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+          <h3 data-i18n="emptyTitle">Start with a photo</h3>
+          <p data-i18n="emptySub">Drop an image here, or choose one from your device.</p>
+          <label class="dropzone" id="dropzone" for="fileInput">
+            <span class="btn btn-primary" data-i18n="chooseBtn" style="pointer-events:none;">Choose an image</span>
+          </label>
+          <input type="file" id="fileInput" accept="image/*" class="visually-hidden">
+        </div>
+        <canvas id="canvas" style="display:none;"></canvas>
+        <div class="brush-cursor" id="brushCursor"></div>
+
+        <div class="ai-overlay" id="aiOverlay">
+          <div class="spinner"></div>
+          <div class="status" id="aiStatus" data-i18n="aiWorking">Loading the AI model — this may take a moment the first time.</div>
+          <div class="progress-track"><div class="progress-fill" id="aiProgressFill"></div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tool rail -->
+    <div class="rail">
+
+      <div class="glass panel" id="panelCut">
+        <div class="panel-head">
+          <span class="panel-num">01</span>
+          <span class="panel-title" data-i18n="cutTitle">Remove background</span>
+        </div>
+
+        <div class="tabs">
+          <button type="button" class="tab-btn active" data-tab="ai" data-i18n="tabAi">AI cutout</button>
+          <button type="button" class="tab-btn" data-tab="flat" data-i18n="tabFlat">Flat colour</button>
+        </div>
+
+        <div class="tab-panel active" id="tabAi">
+          <p class="panel-sub" data-i18n="aiDesc">Segments the subject with a neural network — works on any background, not just solid colours.</p>
+          <button class="btn btn-primary btn-block" id="btnRunAi" data-i18n="aiButton">Remove background</button>
+          <p class="hint" data-i18n="aiNote">First run downloads a small model (cached after that). Needs an internet connection once.</p>
+        </div>
+
+        <div class="tab-panel" id="tabFlat">
+          <p class="panel-sub" data-i18n="flatDesc">Faster, no download — flood-fills the backdrop colour in from the edges. Best for solid or near-solid backgrounds.</p>
+          <div class="field">
+            <div class="field-label"><span data-i18n="sampleLabel">Backdrop colour</span></div>
+            <div class="row">
+              <span class="swatch"><span class="fill" id="bgSwatch"></span></span>
+              <button class="btn btn-outline" id="btnPickBg" data-i18n="pickFromImage">Pick from image</button>
+            </div>
+          </div>
+          <div class="field">
+            <div class="field-label"><span data-i18n="toleranceLabel">Tolerance</span><span class="val" id="bgToleranceVal">32</span></div>
+            <input type="range" id="bgTolerance" min="2" max="120" value="32">
+          </div>
+          <div class="field">
+            <div class="field-label"><span data-i18n="featherLabel">Edge softness</span><span class="val" id="bgFeatherVal">6</span></div>
+            <input type="range" id="bgFeather" min="0" max="24" value="6">
+          </div>
+          <button class="btn btn-outline btn-block" id="btnRemoveBg" data-i18n="cutBtn">Cut background</button>
+        </div>
+      </div>
+
+      <div class="glass panel" id="panelBrush">
+        <div class="panel-head">
+          <span class="panel-num">02</span>
+          <span class="panel-title" data-i18n="brushTitle">Refine edges</span>
+        </div>
+        <p class="panel-sub" data-i18n="brushDesc">Paint to erase leftover background, or restore parts that got cut by mistake.</p>
+        <div class="field">
+          <div class="segmented">
+            <button type="button" class="brush-mode-btn active" data-mode="erase">
+              <svg viewBox="0 0 24 24" fill="none"><path d="M3 17l6-6 4 4-4 4H5a2 2 0 0 1-2-2z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M13 11l4-4 4 4-6 6" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg>
+              <span data-i18n="eraseTool">Erase</span>
+            </button>
+            <button type="button" class="brush-mode-btn" data-mode="restore">
+              <svg viewBox="0 0 24 24" fill="none"><path d="M3 7v6h6M3 13a9 9 0 1 0 3-7" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              <span data-i18n="restoreTool">Restore</span>
+            </button>
+          </div>
+        </div>
+        <div class="field">
+          <div class="field-label"><span data-i18n="brushSizeLabel">Brush size</span><span class="val" id="brushSizeVal">24</span></div>
+          <input type="range" id="brushSize" min="4" max="90" value="24">
+        </div>
+        <button class="btn btn-outline btn-block" id="btnToggleBrush" data-i18n="activateBrush">Activate brush</button>
+      </div>
+
+      <div class="glass panel" id="panelRecolor">
+        <div class="panel-head">
+          <span class="panel-num">03</span>
+          <span class="panel-title" data-i18n="recolorTitle">Recolour</span>
+        </div>
+        <p class="panel-sub" data-i18n="recolorSub">Click a colour on the image, choose its replacement — shading stays intact.</p>
+        <div class="field">
+          <div class="field-label"><span data-i18n="sourceLabel">Colour to replace</span></div>
+          <div class="row">
+            <span class="swatch"><span class="fill" id="srcSwatch"></span></span>
+            <button class="btn btn-outline" id="btnPickSrc" data-i18n="pickOnImage">Pick on image</button>
+          </div>
+        </div>
+        <div class="field">
+          <div class="field-label"><span data-i18n="newColorLabel">New colour</span></div>
+          <div class="row">
+            <input type="color" id="newColor" value="#22d3c7">
+            <button class="btn btn-primary" id="btnApplyRecolor" data-i18n="applyBtn">Apply</button>
+          </div>
+        </div>
+        <div class="field">
+          <div class="field-label"><span data-i18n="toleranceLabel">Tolerance</span><span class="val" id="recToleranceVal">40</span></div>
+          <input type="range" id="recTolerance" min="4" max="140" value="40">
+        </div>
+      </div>
+
+      <div class="glass panel" id="panelHue">
+        <div class="panel-head">
+          <span class="panel-num">04</span>
+          <span class="panel-title" data-i18n="hueTitle">Shift all colours</span>
+        </div>
+        <p class="panel-sub" data-i18n="hueSub">One slider to rotate every colour still on the canvas.</p>
+        <div class="field">
+          <div class="field-label"><span data-i18n="hueLabel">Hue rotation</span><span class="val" id="hueVal">0°</span></div>
+          <input type="range" id="hueSlider" min="-180" max="180" value="0">
+        </div>
+        <button class="btn btn-outline btn-block" id="btnCommitHue" data-i18n="keepBtn">Keep this shift</button>
+      </div>
+
+    </div>
+  </main>
+
+  <p class="footer-note" data-i18n="footerNote">Your photo never leaves this page. Background removal uses an open-source on-device model from IMG.LY, downloaded once and cached by your browser.</p>
+</div>
+
+<script type="module">
+  /* AI library is loaded lazily (see ensureAiLib) so that a blocked/failed
+     CDN request never breaks the rest of the app — upload, brush, recolour
+     and the Flat-colour cutout all work with zero network access. */
+  var _aiFn = null;
+  var AI_CDN_URLS = [
+    "https://esm.sh/@imgly/background-removal@1.7.0",
+    "https://cdn.jsdelivr.net/npm/@imgly/background-removal@1.7.0/+esm"
+  ];
+  async function ensureAiLib(){
+    if (_aiFn) return _aiFn;
+    var lastErr = null;
+    for (var i = 0; i < AI_CDN_URLS.length; i++){
+      try{
+        var mod = await import(/* @vite-ignore */ AI_CDN_URLS[i]);
+        if (mod && typeof mod.removeBackground === "function"){
+          _aiFn = mod.removeBackground;
+          return _aiFn;
+        }
+      } catch(e){ lastErr = e; }
+    }
+    throw lastErr || new Error("AI module failed to load");
+  }
+
+  /* ---------------- Visible error banner (so failures are never silent) ---------------- */
+  function showErrorBanner(msg){
+    var el = document.getElementById("errorBanner");
+    if (!el) return;
+    el.textContent = msg;
+    el.style.display = "block";
+  }
+  window.addEventListener("error", function(e){
+    showErrorBanner((STR && STR[lang] && STR[lang].jsError ? STR[lang].jsError : "Something went wrong: ") + (e.message || e.error || ""));
+  });
+  window.addEventListener("unhandledrejection", function(e){
+    showErrorBanner((STR && STR[lang] && STR[lang].jsError ? STR[lang].jsError : "Something went wrong: ") + (e.reason && e.reason.message ? e.reason.message : e.reason));
+  });
+
+  /* ---------------- i18n ---------------- */
+  var STR = {
+    en:{
+      brandName:"Cutline", brandTag:"AI cutouts, right in your browser",
+      eyebrow:"Runs entirely on-device",
+      heroTitle1:"Cut the background.", heroTitle2:"Keep everything else.",
+      heroSub:"A real AI segmentation model removes the background from any photo — then fine-tune the edges and recolour what's left, all without a single upload to a server.",
+      emptyTitle:"Start with a photo", emptySub:"Drop an image here, or choose one from your device.",
+      chooseBtn:"Choose an image",
+      compareBtn:"Hold to compare", undoEdits:"Undo edits", resetImage:"Reset all", newImage:"New image", download:"Download PNG",
+      cutTitle:"Remove background", tabAi:"AI cutout", tabFlat:"Flat colour",
+      aiDesc:"Segments the subject with a neural network — works on any background, not just solid colours.",
+      aiButton:"Remove background",
+      aiNote:"First run downloads a small model (cached after that). Needs an internet connection once.",
+      flatDesc:"Faster, no download — flood-fills the backdrop colour in from the edges. Best for solid or near-solid backgrounds.",
+      sampleLabel:"Backdrop colour", pickFromImage:"Pick from image",
+      toleranceLabel:"Tolerance", featherLabel:"Edge softness", cutBtn:"Cut background",
+      brushTitle:"Refine edges", brushDesc:"Paint to erase leftover background, or restore parts that got cut by mistake.",
+      eraseTool:"Erase", restoreTool:"Restore", brushSizeLabel:"Brush size",
+      activateBrush:"Activate brush", deactivateBrush:"Deactivate brush",
+      recolorTitle:"Recolour", recolorSub:"Click a colour on the image, choose its replacement — shading stays intact.",
+      sourceLabel:"Colour to replace", pickOnImage:"Pick on image",
+      newColorLabel:"New colour", applyBtn:"Apply",
+      hueTitle:"Shift all colours", hueSub:"One slider to rotate every colour still on the canvas.",
+      hueLabel:"Hue rotation", keepBtn:"Keep this shift",
+      footerNote:"Your photo never leaves this page. Background removal uses an open-source on-device model from IMG.LY, downloaded once and cached by your browser.",
+      noImage:"Choose an image first.", noBgSample:"Pick a backdrop colour first.", noSrcSample:"Pick a colour to replace first.",
+      aiWorking:"Loading the AI model — this may take a moment the first time.",
+      aiRunning:"Segmenting your image…",
+      aiError:"The AI model couldn't load — check your internet connection, or use the Flat colour tab instead (no download needed).",
+      jsError:"Something went wrong: "
+    },
+    ar:{
+      brandName:"كتلاين", brandTag:"قصّ بالذكاء الاصطناعي داخل المتصفح",
+      eyebrow:"يعمل بالكامل على جهازك",
+      heroTitle1:"اقطع الخلفية.", heroTitle2:"واحتفظ بالباقي.",
+      heroSub:"نموذج ذكاء اصطناعي حقيقي يزيل الخلفية من أي صورة — ثم يمكنك ضبط الحواف بدقة وتغيير ألوان ما تبقّى، دون رفع أي شيء إلى خادم.",
+      emptyTitle:"ابدأ بصورة", emptySub:"أفلت صورة هنا، أو اختر واحدة من جهازك.",
+      chooseBtn:"اختيار صورة",
+      compareBtn:"اضغط مطولًا للمقارنة", undoEdits:"تراجع عن التعديلات", resetImage:"إعادة ضبط الكل", newImage:"صورة جديدة", download:"تحميل PNG",
+      cutTitle:"إزالة الخلفية", tabAi:"قصّ بالذكاء الاصطناعي", tabFlat:"لون مسطّح",
+      aiDesc:"يحدد الموضوع باستخدام شبكة عصبية — يعمل مع أي خلفية، وليس فقط الألوان المسطّحة.",
+      aiButton:"إزالة الخلفية",
+      aiNote:"يحمّل التشغيل الأول نموذجًا صغيرًا (يُحفظ بعد ذلك). يحتاج اتصالًا بالإنترنت مرة واحدة.",
+      flatDesc:"أسرع، بلا تحميل — يملأ لون الخلفية من الحواف نحو الداخل. أفضل مع خلفية متجانسة نسبيًا.",
+      sampleLabel:"لون الخلفية", pickFromImage:"تحديد من الصورة",
+      toleranceLabel:"درجة التسامح", featherLabel:"نعومة الحافة", cutBtn:"قصّ الخلفية",
+      brushTitle:"ضبط الحواف", brushDesc:"لوّن لمحو ما تبقّى من الخلفية، أو لاستعادة أجزاء قُصّت بالخطأ.",
+      eraseTool:"محو", restoreTool:"استعادة", brushSizeLabel:"حجم الفرشاة",
+      activateBrush:"تفعيل الفرشاة", deactivateBrush:"إيقاف الفرشاة",
+      recolorTitle:"تغيير الألوان", recolorSub:"اضغط على لون في الصورة، واختر لونًا بديلًا — مع الحفاظ على التظليل.",
+      sourceLabel:"اللون المطلوب استبداله", pickOnImage:"تحديد من الصورة",
+      newColorLabel:"اللون الجديد", applyBtn:"تطبيق",
+      hueTitle:"تغيير جميع الألوان", hueSub:"منزلق واحد لتدوير كل الألوان المتبقية في الصورة.",
+      hueLabel:"درجة تدوير اللون", keepBtn:"احتفظ بهذا التغيير",
+      footerNote:"صورتك لا تُغادر هذه الصفحة أبدًا. تستخدم إزالة الخلفية نموذجًا مفتوح المصدر يعمل على جهازك من IMG.LY، يُحمَّل مرة واحدة ويُحفظ في متصفحك.",
+      noImage:"اختر صورة أولاً.", noBgSample:"حدّد لون الخلفية أولاً.", noSrcSample:"حدّد لونًا لاستبداله أولاً.",
+      aiWorking:"يتم تحميل نموذج الذكاء الاصطناعي — قد يستغرق ذلك لحظة في أول مرة.",
+      aiRunning:"تحليل الصورة جارٍ…",
+      aiError:"تعذّر تحميل نموذج الذكاء الاصطناعي — تحقق من اتصالك بالإنترنت، أو استخدم تبويب اللون المسطّح (لا يحتاج تحميلًا).",
+      jsError:"حدث خطأ: "
+    }
+  };
+  var lang = "en";
+
+  function applyI18n(){
+    document.documentElement.lang = lang;
+    document.documentElement.dir = (lang === "ar") ? "rtl" : "ltr";
+    document.getElementById("btnLangEn").classList.toggle("active", lang === "en");
+    document.getElementById("btnLangAr").classList.toggle("active", lang === "ar");
+    var dict = STR[lang];
+    document.querySelectorAll("[data-i18n]").forEach(function(el){
+      var key = el.getAttribute("data-i18n");
+      if (dict[key] !== undefined) el.textContent = dict[key];
+    });
+    var brushBtn = document.getElementById("btnToggleBrush");
+    if (brushBtn) brushBtn.textContent = brushActive ? dict.deactivateBrush : dict.activateBrush;
+  }
+  document.getElementById("btnLangEn").addEventListener("click", function(){ lang = "en"; applyI18n(); });
+  document.getElementById("btnLangAr").addEventListener("click", function(){ lang = "ar"; applyI18n(); });
+
+  /* ---------------- State ---------------- */
+  var canvas = document.getElementById("canvas");
+  var ctx = canvas.getContext("2d", { willReadFrequently: true });
+  var emptyState = document.getElementById("emptyState");
+  var stageToolbar = document.getElementById("stageToolbar");
+  var fileInput = document.getElementById("fileInput");
+  var dropzone = document.getElementById("dropzone");
+  var stage = document.getElementById("stage");
+
+  var originalImageData = null;  // pristine upload, never mutated
+  var postCutoutData = null;     // snapshot right after AI/flat cutout (brush baseline)
+  var current = null;            // currently shown/edited ImageData
+  var hueSnapshot = null;
+
+  var bgColor = null;
+  var srcColor = null;
+  var pickMode = null;      // null | "bg" | "src"
+  var brushActive = false;
+  var brushMode = "erase";  // "erase" | "restore"
+  var brushRadius = 24;
+
+  var MAX_DIM = 1500;
+
+  function setPanelsEnabled(on){
+    ["panelCut","panelBrush","panelRecolor","panelHue"].forEach(function(id){
+      document.getElementById(id).classList.toggle("disabled", !on);
+    });
+  }
+  function setStageHasImage(has){
+    emptyState.style.display = has ? "none" : "block";
+    canvas.style.display = has ? "block" : "none";
+    stageToolbar.style.display = has ? "flex" : "none";
+    setPanelsEnabled(has);
+  }
+
+  function loadFile(file){
+    if (!file || !file.type || file.type.indexOf("image/") !== 0) return;
+    var reader = new FileReader();
+    reader.onload = function(e){
+      var img = new Image();
+      img.onload = function(){
+        var w = img.naturalWidth, h = img.naturalHeight;
+        var scale = Math.min(1, MAX_DIM / Math.max(w, h));
+        w = Math.max(1, Math.round(w * scale));
+        h = Math.max(1, Math.round(h * scale));
+        canvas.width = w; canvas.height = h;
+        ctx.clearRect(0,0,w,h);
+        ctx.drawImage(img, 0, 0, w, h);
+        originalImageData = ctx.getImageData(0, 0, w, h);
+        postCutoutData = cloneImageData(originalImageData);
+        current = cloneImageData(originalImageData);
+        draw(current);
+        setStageHasImage(true);
+        autoSampleBg();
+        srcColor = null;
+        updateSwatch("srcSwatch", null);
+        resetHueUi();
+        deactivateBrush();
+      };
+      img.src = e.target.result;
+    };
+    reader.readAsDataURL(file);
+  }
+
+  fileInput.addEventListener("change", function(e){
+    if (e.target.files && e.target.files[0]) loadFile(e.target.files[0]);
+  });
+  ["dragover","dragenter"].forEach(function(evt){
+    dropzone.addEventListener(evt, function(e){ e.preventDefault(); dropzone.classList.add("dragover"); });
+  });
+  ["dragleave","dragend","drop"].forEach(function(evt){
+    dropzone.addEventListener(evt, function(){ dropzone.classList.remove("dragover"); });
+  });
+  dropzone.addEventListener("drop", function(e){
+    e.preventDefault();
+    if (e.dataTransfer.files && e.dataTransfer.files[0]) loadFile(e.dataTransfer.files[0]);
+  });
+
+  document.getElementById("btnNewImage").addEventListener("click", function(){
+    fileInput.value = "";
+    fileInput.click();
+  });
+  document.getElementById("btnResetImage").addEventListener("click", function(){
+    if (!originalImageData) return;
+    current = cloneImageData(originalImageData);
+    postCutoutData = cloneImageData(originalImageData);
+    draw(current);
+    autoSampleBg();
+    srcColor = null;
+    updateSwatch("srcSwatch", null);
+    resetHueUi();
+  });
+  document.getElementById("btnUndoEdits").addEventListener("click", function(){
+    if (!postCutoutData) return;
+    current = cloneImageData(postCutoutData);
+    draw(current);
+    resetHueUi();
+  });
+  document.getElementById("btnDownload").addEventListener("click", function(){
+    if (!current) return;
+    var link = document.createElement("a");
+    link.download = "cutline-export.png";
+    link.href = canvas.toDataURL("image/png");
+    link.click();
+  });
+
+  var comparing = false;
+  var btnCompare = document.getElementById("btnCompare");
+  function startCompare(){ if (!current) return; comparing = true; draw(originalImageData); }
+  function endCompare(){ if (!comparing) return; comparing = false; draw(current); }
+  btnCompare.addEventListener("pointerdown", startCompare);
+  ["pointerup","pointerleave","pointercancel"].forEach(function(evt){
+    btnCompare.addEventListener(evt, endCompare);
+  });
+
+  function resetHueUi(){
+    document.getElementById("hueSlider").value = 0;
+    document.getElementById("hueVal").textContent = "0°";
+    hueSnapshot = null;
+  }
+
+  /* ---------------- helpers ---------------- */
+  function cloneImageData(id){ return new ImageData(new Uint8ClampedArray(id.data), id.width, id.height); }
+  function draw(id){ ctx.putImageData(id, 0, 0); }
+  function colorDistSq(r1,g1,b1,r2,g2,b2){ var dr=r1-r2,dg=g1-g2,db=b1-b2; return dr*dr+dg*dg+db*db; }
+  function updateSwatch(elId, rgb){
+    var el = document.getElementById(elId);
+    el.style.background = rgb ? ("rgb(" + rgb.r + "," + rgb.g + "," + rgb.b + ")") :
+      "repeating-conic-gradient(#333 0% 25%, #222 0% 50%) 50%/8px 8px";
+  }
+
+  function autoSampleBg(){
+    if (!current) return;
+    var w = current.width, h = current.height, d = current.data;
+    var pts = [[0,0],[w-1,0],[0,h-1],[w-1,h-1]];
+    var r=0,g=0,b=0,n=0;
+    pts.forEach(function(p){
+      var x=p[0], y=p[1];
+      for (var dx=-2; dx<=2; dx++){
+        for (var dy=-2; dy<=2; dy++){
+          var xx = Math.min(w-1, Math.max(0, x+dx));
+          var yy = Math.min(h-1, Math.max(0, y+dy));
+          var i = (yy*w+xx)*4;
+          r+=d[i]; g+=d[i+1]; b+=d[i+2]; n++;
+        }
+      }
+    });
+    bgColor = { r: Math.round(r/n), g: Math.round(g/n), b: Math.round(b/n) };
+    updateSwatch("bgSwatch", bgColor);
+  }
+
+  function canvasPointFromEvent(e){
+    var rect = canvas.getBoundingClientRect();
+    var clientX = (e.touches ? e.touches[0].clientX : e.clientX);
+    var clientY = (e.touches ? e.touches[0].clientY : e.clientY);
+    var scaleX = canvas.width / rect.width;
+    var scaleY = canvas.height / rect.height;
+    var x = Math.floor((clientX - rect.left) * scaleX);
+    var y = Math.floor((clientY - rect.top) * scaleY);
+    x = Math.max(0, Math.min(canvas.width - 1, x));
+    y = Math.max(0, Math.min(canvas.height - 1, y));
+    return {x:x, y:y, rect:rect, scaleX:scaleX};
+  }
+
+  /* ---------------- Tabs (AI vs Flat) ---------------- */
+  document.querySelectorAll(".tab-btn").forEach(function(btn){
+    btn.addEventListener("click", function(){
+      document.querySelectorAll(".tab-btn").forEach(function(b){ b.classList.remove("active"); });
+      document.querySelectorAll(".tab-panel").forEach(function(p){ p.classList.remove("active"); });
+      btn.classList.add("active");
+      document.getElementById("tab" + (btn.getAttribute("data-tab") === "ai" ? "Ai" : "Flat")).classList.add("active");
+    });
+  });
+
+  /* ---------------- Pick eyedroppers (Flat tab + Recolor) ---------------- */
+  function startPicking(mode){ pickMode = mode; canvas.classList.add("tool-pick"); }
+  function stopPicking(){ pickMode = null; canvas.classList.remove("tool-pick"); }
+
+  canvas.addEventListener("click", function(e){
+    if (!pickMode || !current || brushActive) return;
+    var p = canvasPointFromEvent(e);
+    var i = (p.y * current.width + p.x) * 4;
+    var rgb = { r: current.data[i], g: current.data[i+1], b: current.data[i+2] };
+    if (pickMode === "bg"){ bgColor = rgb; updateSwatch("bgSwatch", bgColor); }
+    else if (pickMode === "src"){ srcColor = rgb; updateSwatch("srcSwatch", srcColor); }
+    stopPicking();
+  });
+  document.getElementById("btnPickBg").addEventListener("click", function(){
+    if (!current){ alert(STR[lang].noImage); return; } startPicking("bg");
+  });
+  document.getElementById("btnPickSrc").addEventListener("click", function(){
+    if (!current){ alert(STR[lang].noImage); return; } startPicking("src");
+  });
+
+  /* ---------------- Flat-colour cutout (flood fill from edges) ---------------- */
+  var bgTolerance = document.getElementById("bgTolerance");
+  var bgFeather = document.getElementById("bgFeather");
+  bgTolerance.addEventListener("input", function(){ document.getElementById("bgToleranceVal").textContent = bgTolerance.value; });
+  bgFeather.addEventListener("input", function(){ document.getElementById("bgFeatherVal").textContent = bgFeather.value; });
+
+  document.getElementById("btnRemoveBg").addEventListener("click", function(){
+    if (!current){ alert(STR[lang].noImage); return; }
+    if (!bgColor){ alert(STR[lang].noBgSample); return; }
+    removeBackgroundFlat(bgColor, parseInt(bgTolerance.value,10), parseInt(bgFeather.value,10));
+    postCutoutData = cloneImageData(current);
+  });
+
+  function removeBackgroundFlat(target, tolerance, feather){
+    var w = current.width, h = current.height;
+    var src = current.data;
+    var out = new Uint8ClampedArray(src);
+    var thresholdSq = tolerance * tolerance;
+    var visited = new Uint8Array(w*h);
+    var mask = new Uint8Array(w*h);
+    var stack = [];
+    function tryPush(x,y){
+      if (x<0||x>=w||y<0||y>=h) return;
+      var idx = y*w+x;
+      if (visited[idx]) return;
+      visited[idx] = 1;
+      var i = idx*4;
+      var dSq = colorDistSq(src[i],src[i+1],src[i+2], target.r,target.g,target.b);
+      if (dSq <= thresholdSq){ mask[idx] = 1; stack.push(x,y); }
+    }
+    for (var x=0; x<w; x++){ tryPush(x,0); tryPush(x,h-1); }
+    for (var y=0; y<h; y++){ tryPush(0,y); tryPush(w-1,y); }
+    while (stack.length){
+      var yy = stack.pop(), xx = stack.pop();
+      tryPush(xx+1,yy); tryPush(xx-1,yy); tryPush(xx,yy+1); tryPush(xx,yy-1);
+    }
+    var featherBandSq = Math.pow(tolerance + Math.max(1,feather) * 3, 2);
+    for (var p=0; p<w*h; p++){
+      var i4 = p*4;
+      if (mask[p]){ out[i4+3] = 0; }
+      else if (feather > 0){
+        var dSq2 = colorDistSq(src[i4],src[i4+1],src[i4+2], target.r,target.g,target.b);
+        if (dSq2 <= featherBandSq){
+          var px = p % w, py = (p - px) / w;
+          var nearMasked = (px>0 && mask[p-1]) || (px<w-1 && mask[p+1]) || (py>0 && mask[p-w]) || (py<h-1 && mask[p+w]);
+          if (nearMasked){
+            var t = (dSq2 - thresholdSq) / (featherBandSq - thresholdSq + 0.0001);
+            t = Math.max(0, Math.min(1, t));
+            out[i4+3] = Math.round(255 * t);
+          }
+        }
+      }
+    }
+    current = new ImageData(out, w, h);
+    draw(current);
+  }
+
+  /* ---------------- AI cutout ---------------- */
+  var aiOverlay = document.getElementById("aiOverlay");
+  var aiStatus = document.getElementById("aiStatus");
+  var aiProgressFill = document.getElementById("aiProgressFill");
+
+  document.getElementById("btnRunAi").addEventListener("click", function(){ runAiCutout(); });
+
+  function setAiOverlay(show){ aiOverlay.classList.toggle("show", show); }
+
+  async function runAiCutout(){
+    if (!current) { alert(STR[lang].noImage); return; }
+    setAiOverlay(true);
+    aiStatus.textContent = STR[lang].aiWorking;
+    aiProgressFill.style.width = "0%";
+    try{
+      var removeBackground = await ensureAiLib();
+      var srcBlob = await new Promise(function(res){ canvas.toBlob(res, "image/png"); });
+      var resultBlob = await removeBackground(srcBlob, {
+        progress: function(key, cur, total){
+          aiStatus.textContent = STR[lang].aiWorking;
+          if (total > 0){
+            aiProgressFill.style.width = Math.round((cur/total)*100) + "%";
+          }
+        }
+      });
+      aiStatus.textContent = STR[lang].aiRunning;
+      var url = URL.createObjectURL(resultBlob);
+      var img = new Image();
+      await new Promise(function(resolve, reject){ img.onload = resolve; img.onerror = reject; img.src = url; });
+      ctx.clearRect(0,0,canvas.width,canvas.height);
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+      current = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      postCutoutData = cloneImageData(current);
+      draw(current);
+      URL.revokeObjectURL(url);
+    } catch(err){
+      console.error(err);
+      showErrorBanner(STR[lang].aiError);
+    } finally {
+      setAiOverlay(false);
+    }
+  }
+
+  /* ---------------- Brush (erase / restore) ---------------- */
+  var brushCursor = document.getElementById("brushCursor");
+  var brushSizeInput = document.getElementById("brushSize");
+  var btnToggleBrush = document.getElementById("btnToggleBrush");
+
+  document.querySelectorAll(".brush-mode-btn").forEach(function(btn){
+    btn.addEventListener("click", function(){
+      document.querySelectorAll(".brush-mode-btn").forEach(function(b){ b.classList.remove("active"); });
+      btn.classList.add("active");
+      brushMode = btn.getAttribute("data-mode");
+    });
+  });
+  brushSizeInput.addEventListener("input", function(){
+    brushRadius = parseInt(brushSizeInput.value,10);
+    document.getElementById("brushSizeVal").textContent = brushRadius;
+  });
+
+  function activateBrush(){
+    if (!current) { alert(STR[lang].noImage); return; }
+    brushActive = true;
+    stopPicking();
+    canvas.classList.add("tool-brush");
+    btnToggleBrush.textContent = STR[lang].deactivateBrush;
+  }
+  function deactivateBrush(){
+    brushActive = false;
+    canvas.classList.remove("tool-brush");
+    brushCursor.style.display = "none";
+    btnToggleBrush.textContent = STR[lang].activateBrush;
+  }
+  btnToggleBrush.addEventListener("click", function(){
+    if (brushActive) deactivateBrush(); else activateBrush();
+  });
+
+  function paintCircle(cx, cy, r, mode){
+    var w = current.width, h = current.height, data = current.data, orig = originalImageData.data;
+    var x0 = Math.max(0, Math.floor(cx-r)), x1 = Math.min(w-1, Math.ceil(cx+r));
+    var y0 = Math.max(0, Math.floor(cy-r)), y1 = Math.min(h-1, Math.ceil(cy+r));
+    var r2 = r*r;
+    for (var y=y0; y<=y1; y++){
+      for (var x=x0; x<=x1; x++){
+        var dx=x-cx, dy=y-cy;
+        if (dx*dx+dy*dy <= r2){
+          var i = (y*w+x)*4;
+          if (mode === "erase"){ data[i+3] = 0; }
+          else { data[i]=orig[i]; data[i+1]=orig[i+1]; data[i+2]=orig[i+2]; data[i+3]=orig[i+3]; }
+        }
+      }
+    }
+  }
+  function paintStroke(x0,y0,x1,y1,r,mode){
+    var dist = Math.hypot(x1-x0, y1-y0);
+    var steps = Math.max(1, Math.ceil(dist / Math.max(2, r*0.4)));
+    for (var s=0; s<=steps; s++){
+      var t = s/steps;
+      paintCircle(x0+(x1-x0)*t, y0+(y1-y0)*t, r, mode);
+    }
+  }
+
+  var brushing = false, lastPt = null;
+  canvas.addEventListener("pointerdown", function(e){
+    if (!brushActive || !current) return;
+    brushing = true;
+    try{ canvas.setPointerCapture(e.pointerId); }catch(err){}
+    var p = canvasPointFromEvent(e);
+    paintCircle(p.x, p.y, brushRadius, brushMode);
+    draw(current);
+    lastPt = p;
+  });
+  canvas.addEventListener("pointermove", function(e){
+    updateBrushCursor(e);
+    if (!brushing || !brushActive) return;
+    var p = canvasPointFromEvent(e);
+    paintStroke(lastPt.x, lastPt.y, p.x, p.y, brushRadius, brushMode);
+    draw(current);
+    lastPt = p;
+  });
+  window.addEventListener("pointerup", function(){ brushing = false; lastPt = null; });
+  canvas.addEventListener("pointerleave", function(){ brushCursor.style.display = "none"; });
+
+  function updateBrushCursor(e){
+    if (!brushActive) { brushCursor.style.display = "none"; return; }
+    var rect = canvas.getBoundingClientRect();
+    var stageRect = stage.getBoundingClientRect();
+    var displayScale = rect.width / canvas.width;
+    var diameter = brushRadius * 2 * displayScale;
+    var clientX = (e.touches ? e.touches[0].clientX : e.clientX);
+    var clientY = (e.touches ? e.touches[0].clientY : e.clientY);
+    brushCursor.style.display = "block";
+    brushCursor.style.width = diameter + "px";
+    brushCursor.style.height = diameter + "px";
+    brushCursor.style.left = (clientX - stageRect.left) + "px";
+    brushCursor.style.top = (clientY - stageRect.top) + "px";
+  }
+
+  /* ---------------- Recolor (HSL hue/sat swap, preserve lightness) ---------------- */
+  var recTolerance = document.getElementById("recTolerance");
+  recTolerance.addEventListener("input", function(){ document.getElementById("recToleranceVal").textContent = recTolerance.value; });
+
+  document.getElementById("btnApplyRecolor").addEventListener("click", function(){
+    if (!current){ alert(STR[lang].noImage); return; }
+    if (!srcColor){ alert(STR[lang].noSrcSample); return; }
+    var target = hexToRgb(document.getElementById("newColor").value);
+    applyRecolor(srcColor, target, parseInt(recTolerance.value,10));
+  });
+
+  function hexToRgb(hex){
+    hex = hex.replace("#","");
+    return { r: parseInt(hex.substring(0,2),16), g: parseInt(hex.substring(2,4),16), b: parseInt(hex.substring(4,6),16) };
+  }
+  function rgbToHsl(r,g,b){
+    r/=255; g/=255; b/=255;
+    var max=Math.max(r,g,b), min=Math.min(r,g,b);
+    var h=0, s=0, l=(max+min)/2, d=max-min;
+    if (d !== 0){
+      s = d / (1 - Math.abs(2*l-1));
+      switch(max){
+        case r: h = ((g-b)/d) % 6; break;
+        case g: h = (b-r)/d + 2; break;
+        case b: h = (r-g)/d + 4; break;
+      }
+      h *= 60; if (h<0) h += 360;
+    }
+    return [h,s,l];
+  }
+  function hslToRgb(h,s,l){
+    var c = (1 - Math.abs(2*l-1)) * s;
+    var x = c * (1 - Math.abs(((h/60) % 2) - 1));
+    var m = l - c/2;
+    var r=0,g=0,b=0;
+    if (h<60){r=c;g=x;b=0;} else if (h<120){r=x;g=c;b=0;} else if (h<180){r=0;g=c;b=x;}
+    else if (h<240){r=0;g=x;b=c;} else if (h<300){r=x;g=0;b=c;} else {r=c;g=0;b=x;}
+    return [Math.round((r+m)*255), Math.round((g+m)*255), Math.round((b+m)*255)];
+  }
+
+  function applyRecolor(sourceRgb, targetRgb, tolerance){
+    var w = current.width, h = current.height;
+    var data = current.data;
+    var thresholdSq = tolerance * tolerance;
+    var targetHsl = rgbToHsl(targetRgb.r, targetRgb.g, targetRgb.b);
+    var targetH = targetHsl[0], targetS = targetHsl[1];
+    for (var p=0; p<w*h; p++){
+      var i = p*4;
+      if (data[i+3] === 0) continue;
+      var dSq = colorDistSq(data[i],data[i+1],data[i+2], sourceRgb.r,sourceRgb.g,sourceRgb.b);
+      if (dSq <= thresholdSq){
+        var hsl = rgbToHsl(data[i],data[i+1],data[i+2]);
+        var newS = Math.max(hsl[1], targetS * 0.6);
+        var rgb = hslToRgb(targetH, newS, hsl[2]);
+        data[i]=rgb[0]; data[i+1]=rgb[1]; data[i+2]=rgb[2];
+      }
+    }
+    draw(current);
+  }
+
+  /* ---------------- Global hue rotation ---------------- */
+  var hueSlider = document.getElementById("hueSlider");
+  var hueVal = document.getElementById("hueVal");
+  hueSlider.addEventListener("pointerdown", function(){ if (current) hueSnapshot = cloneImageData(current); });
+  hueSlider.addEventListener("input", function(){
+    hueVal.textContent = hueSlider.value + "°";
+    if (!current) return;
+    if (!hueSnapshot) hueSnapshot = cloneImageData(current);
+    draw(hueRotate(hueSnapshot, parseInt(hueSlider.value,10)));
+  });
+  document.getElementById("btnCommitHue").addEventListener("click", function(){
+    if (!current || !hueSnapshot) return;
+    current = hueRotate(hueSnapshot, parseInt(hueSlider.value,10));
+    draw(current);
+    hueSnapshot = cloneImageData(current);
+    hueSlider.value = 0;
+    hueVal.textContent = "0°";
+  });
+  function hueRotate(sourceId, degrees){
+    var w = sourceId.width, h = sourceId.height;
+    var src = sourceId.data;
+    var out = new Uint8ClampedArray(src);
+    for (var p=0; p<w*h; p++){
+      var i = p*4;
+      if (src[i+3] === 0) continue;
+      var hsl = rgbToHsl(src[i],src[i+1],src[i+2]);
+      var nh = (hsl[0] + degrees + 360) % 360;
+      var rgb = hslToRgb(nh, hsl[1], hsl[2]);
+      out[i]=rgb[0]; out[i+1]=rgb[1]; out[i+2]=rgb[2];
+    }
+    return new ImageData(out, w, h);
+  }
+
+  applyI18n();
+</script>
+</body>
+</html>
