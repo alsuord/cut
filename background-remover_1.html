@@ -229,6 +229,12 @@
 
   .footer-note{text-align:center;color:var(--text-faint);font-size:11.5px;margin-top:40px;line-height:1.7;}
 
+  .error-banner{
+    background:rgba(242,84,91,0.12);border:1px solid rgba(242,84,91,0.4);color:#FFB3B7;
+    border-radius:var(--radius-md);padding:12px 16px;font-size:12.5px;line-height:1.5;
+    margin-bottom:20px;
+  }
+
   [dir="rtl"] .field-label{flex-direction:row-reverse;}
   [dir="rtl"] .panel-head{flex-direction:row-reverse;}
   [dir="rtl"] .row{flex-direction:row-reverse;}
@@ -240,6 +246,8 @@
 </head>
 <body>
 <div class="app">
+
+  <div class="error-banner" id="errorBanner" style="display:none;"></div>
 
   <header class="topbar">
     <div class="brand">
@@ -423,7 +431,42 @@
 </div>
 
 <script type="module">
-  import { removeBackground } from "https://esm.sh/@imgly/background-removal@1.7.0";
+  /* AI library is loaded lazily (see ensureAiLib) so that a blocked/failed
+     CDN request never breaks the rest of the app — upload, brush, recolour
+     and the Flat-colour cutout all work with zero network access. */
+  var _aiFn = null;
+  var AI_CDN_URLS = [
+    "https://esm.sh/@imgly/background-removal@1.7.0",
+    "https://cdn.jsdelivr.net/npm/@imgly/background-removal@1.7.0/+esm"
+  ];
+  async function ensureAiLib(){
+    if (_aiFn) return _aiFn;
+    var lastErr = null;
+    for (var i = 0; i < AI_CDN_URLS.length; i++){
+      try{
+        var mod = await import(/* @vite-ignore */ AI_CDN_URLS[i]);
+        if (mod && typeof mod.removeBackground === "function"){
+          _aiFn = mod.removeBackground;
+          return _aiFn;
+        }
+      } catch(e){ lastErr = e; }
+    }
+    throw lastErr || new Error("AI module failed to load");
+  }
+
+  /* ---------------- Visible error banner (so failures are never silent) ---------------- */
+  function showErrorBanner(msg){
+    var el = document.getElementById("errorBanner");
+    if (!el) return;
+    el.textContent = msg;
+    el.style.display = "block";
+  }
+  window.addEventListener("error", function(e){
+    showErrorBanner((STR && STR[lang] && STR[lang].jsError ? STR[lang].jsError : "Something went wrong: ") + (e.message || e.error || ""));
+  });
+  window.addEventListener("unhandledrejection", function(e){
+    showErrorBanner((STR && STR[lang] && STR[lang].jsError ? STR[lang].jsError : "Something went wrong: ") + (e.reason && e.reason.message ? e.reason.message : e.reason));
+  });
 
   /* ---------------- i18n ---------------- */
   var STR = {
@@ -454,7 +497,8 @@
       noImage:"Choose an image first.", noBgSample:"Pick a backdrop colour first.", noSrcSample:"Pick a colour to replace first.",
       aiWorking:"Loading the AI model — this may take a moment the first time.",
       aiRunning:"Segmenting your image…",
-      aiError:"The AI model couldn't run — check your connection and try again, or use the Flat colour tab instead."
+      aiError:"The AI model couldn't load — check your internet connection, or use the Flat colour tab instead (no download needed).",
+      jsError:"Something went wrong: "
     },
     ar:{
       brandName:"كتلاين", brandTag:"قصّ بالذكاء الاصطناعي داخل المتصفح",
@@ -483,7 +527,8 @@
       noImage:"اختر صورة أولاً.", noBgSample:"حدّد لون الخلفية أولاً.", noSrcSample:"حدّد لونًا لاستبداله أولاً.",
       aiWorking:"يتم تحميل نموذج الذكاء الاصطناعي — قد يستغرق ذلك لحظة في أول مرة.",
       aiRunning:"تحليل الصورة جارٍ…",
-      aiError:"تعذّر تشغيل نموذج الذكاء الاصطناعي — تحقق من الاتصال وحاول مجددًا، أو استخدم تبويب اللون المسطّح."
+      aiError:"تعذّر تحميل نموذج الذكاء الاصطناعي — تحقق من اتصالك بالإنترنت، أو استخدم تبويب اللون المسطّح (لا يحتاج تحميلًا).",
+      jsError:"حدث خطأ: "
     }
   };
   var lang = "en";
@@ -770,6 +815,7 @@
     aiStatus.textContent = STR[lang].aiWorking;
     aiProgressFill.style.width = "0%";
     try{
+      var removeBackground = await ensureAiLib();
       var srcBlob = await new Promise(function(res){ canvas.toBlob(res, "image/png"); });
       var resultBlob = await removeBackground(srcBlob, {
         progress: function(key, cur, total){
@@ -791,7 +837,7 @@
       URL.revokeObjectURL(url);
     } catch(err){
       console.error(err);
-      alert(STR[lang].aiError);
+      showErrorBanner(STR[lang].aiError);
     } finally {
       setAiOverlay(false);
     }
